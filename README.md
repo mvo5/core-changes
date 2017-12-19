@@ -23,3 +23,9 @@ add the following to your crontab:
 This will build the archive and generate the changes automatically.
 You may want to customize the output path in there.
 
+## Development
+
+Run the tests via:
+
+    python -m unittests discover
+
