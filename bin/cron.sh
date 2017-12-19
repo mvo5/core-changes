@@ -17,17 +17,12 @@ for ch in stable candidate beta edge; do
     # generation
     (cd "$ARCHIVE" && snap download "--$ch" core >/dev/null 2>&1)
 
-    # generate the changes
-    CHANGES="$OUTPUT/changes-$ch.txt"
-    gen-core-changes.py --markdown "$ARCHIVE" > "${CHANGES}".tmp
+    # generate the html changes
+    CHANGES="$OUTPUT/html/$ch"
+    gen-core-changes.py --html "$ARCHIVE" --output-dir "${CHANGES}".new
 
-    echo "" >> "${CHANGES}".tmp
-    echo "Generated on $(date)" >> "${CHANGES}".tmp
-
-    # move things into place, don't change timestamp unless there are changes
-    # so that if-modified-since etc works
-    if [ ! -e $CHANGES ] || ! cmp <(grep -v "Generated on" "${CHANGES}".tmp) <(grep -v "Generated on" "$CHANGES") >/dev/null 2>&1; then
-        mv "${CHANGES}.tmp" "$CHANGES"
-    fi
-    rm -f "${CHANGES}".tmp
+    # move things in place
+    mv ${CHANGES} ${CHANGES}.old
+    mv ${CHANGES}.new ${CHANGES}
+    rm -rf ${CHANGES}.old
 done
