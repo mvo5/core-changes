@@ -137,7 +137,7 @@ def deb_changelogs(new_snap, pkg_changes):
     """
     changelogs = {}  # type: Dict[str, str]
     with tmpdir() as tmp:
-        unsquashfs(tmp, new_snap, "/usr/share/doc/*/changelog*")
+        unsquashfs(tmp, new_snap, "/usr/share/doc/*")
         for name in pkg_changes:
             old_ver, new_ver = pkg_changes[name]
             for chglogname in ["changelog.Debian.gz", "changelog.gz"]:
