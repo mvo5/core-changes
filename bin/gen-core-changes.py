@@ -214,6 +214,7 @@ def gen_html_filename(chg):
 
 def render_as_html(changes, output_dir):
     """render_as_html renders the given changes as html"""
+    os.makedirs(output_dir)
     loader=jinja2.FileSystemLoader(
         os.path.join(os.path.dirname(__file__), "..", "templates"))
     env = jinja2.Environment(loader=loader, autoescape=True)
