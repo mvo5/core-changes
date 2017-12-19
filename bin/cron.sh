@@ -22,7 +22,9 @@ for ch in stable candidate beta edge; do
     gen-core-changes.py --html "$ARCHIVE" --output-dir "${CHANGES}".new
 
     # move things in place
-    mv ${CHANGES} ${CHANGES}.old
+    if [ -d ${CHANGES} ]; then
+           mv ${CHANGES} ${CHANGES}.old
+    fi
     mv ${CHANGES}.new ${CHANGES}
     rm -rf ${CHANGES}.old
 done
