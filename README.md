@@ -8,10 +8,12 @@ tool.
 
 Run:
 
-    gen-core-changes /path/to/directory/with/core/snaps
+    gen-core-changes --markdown /path/to/directory/with/core/snaps
 
 It will generate a markdown document that contains the changes
 for each core.
+
+It also supported `--html` to generate a html changelog.
 
 ## Cron
 
