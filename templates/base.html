@@ -4,6 +4,15 @@
     <title>{% block title %}{% endblock %}</title>
   </head>
   <body>
+    <div>
     {% block content %}{% endblock %}
+    </div>
+
+    <div>
+      <small>
+        Page generated at {{ now }}.
+      </small>
+    </div>
+
   </body>
 </html>

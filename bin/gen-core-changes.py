@@ -220,6 +220,7 @@ def render_as_html(changes, output_dir):
         os.path.join(os.path.dirname(__file__), "..", "templates"))
     env = jinja2.Environment(loader=loader, autoescape=True)
     env.filters["gen_html_filename"] = gen_html_filename
+    env.globals["now"] = datetime.datetime.utcnow().replace(microsecond=0)
     with open(os.path.join(output_dir, "index.html"), "wb") as index_fp:
         index = env.get_template('index.html')
         output = index.render(changes=changes)
