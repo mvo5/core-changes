@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Changes for {{ change.old_version }} to {{ change.new_version }}{% endblock %}
+
+{% block content %}
+<h1>Changes for {{ change.old_version }} to {{ change.new_version }} ({{ change.build_date }})</h1>
+
+<h2>Package changes</h2>
+<ul>
+  {% for pkg, from_to in change.pkg_changes |dictsort %}
+  <li>
+    <a href="#{{ pkg }}">{{ pkg }}</a> from {{ from_to[0] }} to {{ from_to[1] }}
+  </li>
+  {% endfor %}
+</ul>
+
+<h2>Package changelogs</h2>
+
+<ul>
+  {% for name, changelog in change.changelogs | dictsort %}
+  <a name="{{ name }}">
+  <h3>Change for {{ name }}</h3>
+  <pre>{{ changelog }}</pre>
+  {% endfor %}
+<ul>
+
+{% endblock %}

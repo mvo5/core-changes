@@ -19,7 +19,7 @@ for ch in stable candidate beta edge; do
 
     # generate the changes
     CHANGES="$OUTPUT/changes-$ch.txt"
-    gen-core-changes.py "$ARCHIVE" > "${CHANGES}".tmp
+    gen-core-changes.py --markdown "$ARCHIVE" > "${CHANGES}".tmp
 
     echo "" >> "${CHANGES}".tmp
     echo "Generated on $(date)" >> "${CHANGES}".tmp

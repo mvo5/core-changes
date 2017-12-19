@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Core changes{% endblock %}
+
+{% block content %}
+<h1>Core changes</h1>
+<ul>
+  {% for chg in changes %}
+  <li>Changes from <a href="{{ chg|gen_html_filename }}">{{chg.old_version}} to {{chg.new_version}}</a> (build on {{chg.build_date}})</li>
+  {% endfor %}
+</ul>
+{% endblock %}

@@ -1,7 +1,9 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 #
 # no python3 on lillypilly (ubuntu 12.04)
 
+import argparse
 import datetime
 import glob
 import gzip
@@ -11,6 +13,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+import jinja2
 
 try:
     from typing import Dict, List, Tuple
@@ -116,7 +120,8 @@ def changelog_until(changelog_path, old_version):
     """
     lines = []
     with gzip.open(changelog_path) as changelog:
-        for line in changelog:
+        for raw in changelog:
+            line = raw.decode("utf-8", errors="xmlcharrefreplace")
             line = line.rstrip()
             # FIXME: make this smater
             if "("+old_version+")" in line:
@@ -184,6 +189,7 @@ def all_snap_changes(archive_dir):
 
 
 def render_as_text(changes):
+    # type: (List[Change]) -> None
     """render_as_text renders the given changes via text output"""
     for chg in changes:
         print("# Core snap %s to %s (build %s)" % (chg.old_version, chg.new_version, chg.build_date))
@@ -198,12 +204,45 @@ def render_as_text(changes):
             print("\n")
 
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Need directory with snap packages as first arg")
-        sys.exit(1)
-    
-    archive_dir = sys.argv[1]
-    all_changes = all_snap_changes(archive_dir)
+def gen_html_filename(chg):
+    # type: (Change) -> str
+    """
+    gen_html_filename returns the filename of a change for the html renderer
+    """
+    return "%s_%s.html" % (chg.old_version, chg.new_version)
 
-    render_as_text(all_changes)
+
+def render_as_html(changes, output_dir):
+    """render_as_html renders the given changes as html"""
+    loader=jinja2.FileSystemLoader(
+        os.path.join(os.path.dirname(__file__), "..", "templates"))
+    env = jinja2.Environment(loader=loader, autoescape=True)
+    env.filters["gen_html_filename"] = gen_html_filename
+    with open(os.path.join(output_dir, "index.html"), "wb") as index_fp:
+        index = env.get_template('index.html')
+        output = index.render(changes=changes)
+        index_fp.write(output.encode("utf-8"))
+    for chg in changes:
+        details_html = os.path.join(output_dir, gen_html_filename(chg))
+        with open(details_html, "wb") as details_fp:
+            details = env.get_template('change_details.html')
+            output = details.render(change=chg)
+            details_fp.write(output.encode("utf-8"))
+
+   
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('archive_dir')
+    parser.add_argument('--markdown', action='store_true')
+    parser.add_argument('--html', action='store_true')
+    parser.add_argument('--output-dir', default="./html")
+    args = parser.parse_args()
+    
+    all_changes = all_snap_changes(args.archive_dir)
+    if args.markdown:
+        render_as_text(all_changes)
+    elif args.html:
+        render_as_html(all_changes, args.output_dir)
+    else:
+        print("no output format selected, use --html or --markdown")
+        sys.exit(1)
