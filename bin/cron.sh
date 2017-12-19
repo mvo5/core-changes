@@ -5,21 +5,29 @@ set -e
 OUTPUT=~/public_html/core-changes
 mkdir -p "$OUTPUT"
 
-BASE=$(dirname "$0")/..
-PATH=$PATH:"$BASE/bin"
+BASE=$(readlink -f "$(dirname "$0")/..")
+PATH="$BASE/bin":$PATH
 
-# ensure we have an archive of cores
-(cd "$BASE/archive" ; snap download --stable core 2>/dev/null)
+# generate per-channel changes
+for ch in stable candidate beta edge; do
+    ARCHIVE="$BASE"/archive-"$ch"
+    mkdir -p "$ARCHIVE"
 
-# generate the changes
-gen-core-changes.py "$BASE"/archive > "$OUTPUT"/changes.txt.tmp
+    # ensure we have an archive of snaps available for the changes
+    # generation
+    (cd "$ARCHIVE" && snap download "--$ch" core 2>/dev/null)
 
-echo "" >> "$OUTPUT"/changes.txt.tmp
-echo "Generated on $(date)" >> "$OUTPUT"/changes.txt.tmp
+    # generate the changes
+    CHANGES="$OUTPUT/changes-$ch.txt"
+    gen-core-changes.py "$ARCHIVE" > "${CHANGES}".tmp
 
-# move things into place, don't change timestamp unless there are changes
-# so that if-modified-since etc works
-if [ ! -e "$OUTPUT"/changes.txt ] || ! cmp <(grep -v "Generated on" "$OUTPUT"/changes.txt.tmp) <(grep -v "Generated on" "$OUTPUT"/changes.txt) 2>/dev/null; then
-    mv "$OUTPUT"/changes.txt.tmp "$OUTPUT"/changes.txt
-fi
-rm -f "$OUTPUT"/changes.txt.tmp
+    echo "" >> "${CHANGES}".tmp
+    echo "Generated on $(date)" >> "${CHANGES}".tmp
+
+    # move things into place, don't change timestamp unless there are changes
+    # so that if-modified-since etc works
+    if [ ! -e $CHANGES ] || ! cmp <(grep -v "Generated on" "${CHANGES}".tmp) <(grep -v "Generated on" "$CHANGES") 2>/dev/null; then
+        mv "${CHANGES}.tmp" "$CHANGES"
+    fi
+    rm -f "${CHANGES}".tmp
+done
