@@ -200,7 +200,7 @@ def render_as_text(changes):
         print("\n")
         print("## Changelogs\n")
         for name, changelog in chg.changelogs.items():
-            print("%s" % changelog)
+            print("%s" % changelog.encode("utf-8"))
             print("\n")
 
 
