@@ -17,7 +17,7 @@
 
 <ul>
   {% for name, changelog in change.changelogs | dictsort %}
-  <a name="{{ name }}">
+  <a name="{{ name }}"></a>
   <h3>Change for {{ name }}</h3>
   <pre>{{ changelog }}</pre>
   {% endfor %}
