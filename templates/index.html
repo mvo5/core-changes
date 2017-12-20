@@ -2,10 +2,15 @@
 {% block title %}Core changes{% endblock %}
 
 {% block content %}
-<h1>Core changes</h1>
+<h1>Core changes for channel {{ channel }}</h1>
+
+<div>
+  Showing {{ changes|length }} changes for the {{ channel }} channel:
+</div>
+
 <ul>
   {% for chg in changes %}
-  <li>Changes from <a href="{{ chg|gen_html_filename }}">{{chg.old_version}} to {{chg.new_version}}</a> (build on {{chg.build_date}})</li>
+  <li><a href="{{ chg|gen_html_filename }}">{{chg.old_version}} to {{chg.new_version}}</a> (build on {{chg.build_date}})</li>
   {% endfor %}
 </ul>
 {% endblock %}

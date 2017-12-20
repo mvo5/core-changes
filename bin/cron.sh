@@ -19,7 +19,7 @@ for ch in stable candidate beta edge; do
 
     # generate the html changes
     CHANGES="$OUTPUT/html/$ch"
-    gen-core-changes.py --html "$ARCHIVE" --output-dir "${CHANGES}".new
+    gen-core-changes.py --html "$ARCHIVE" --channel "$ch" --output-dir "${CHANGES}".new
 
     # move things in place
     if [ -d ${CHANGES} ]; then

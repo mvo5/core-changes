@@ -212,7 +212,7 @@ def gen_html_filename(chg):
     return "%s_%s.html" % (chg.old_version, chg.new_version)
 
 
-def render_as_html(changes, output_dir):
+def render_as_html(changes, output_dir, channel):
     """render_as_html renders the given changes as html"""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -221,6 +221,7 @@ def render_as_html(changes, output_dir):
     env = jinja2.Environment(loader=loader, autoescape=True)
     env.filters["gen_html_filename"] = gen_html_filename
     env.globals["now"] = datetime.datetime.utcnow().replace(microsecond=0)
+    env.globals["channel"] = channel
     with open(os.path.join(output_dir, "index.html"), "wb") as index_fp:
         index = env.get_template('index.html')
         output = index.render(changes=changes)
@@ -239,13 +240,14 @@ if __name__ == "__main__":
     parser.add_argument('--markdown', action='store_true')
     parser.add_argument('--html', action='store_true')
     parser.add_argument('--output-dir', default="./html")
+    parser.add_argument('--channel', default='unknown')
     args = parser.parse_args()
     
     all_changes = all_snap_changes(args.archive_dir)
     if args.markdown:
         render_as_text(all_changes)
     elif args.html:
-        render_as_html(all_changes, args.output_dir)
+        render_as_html(all_changes, args.output_dir, args.channel)
     else:
         print("no output format selected, use --html or --markdown")
         sys.exit(1)

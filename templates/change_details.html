@@ -2,7 +2,13 @@
 {% block title %}Changes for {{ change.old_version }} to {{ change.new_version }}{% endblock %}
 
 {% block content %}
-<h1>Changes for {{ change.old_version }} to {{ change.new_version }} ({{ change.build_date }})</h1>
+<h1>Changes from {{ change.old_version }} to {{ change.new_version }}</h1>
+
+<h2>Summary</h2>
+
+<div>
+  The {{ change.new_version }} version of core was build on {{ change.build_date }}. It contains {{ change.pkg_changes|length }} package changes.
+</div>
 
 <h2>Package changes</h2>
 <ul>
