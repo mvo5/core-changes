@@ -140,10 +140,12 @@ def deb_changelogs(new_snap, pkg_changes):
         unsquashfs(tmp, new_snap, "/usr/share/doc/*")
         for name in pkg_changes:
             old_ver, new_ver = pkg_changes[name]
+            # split of multi-arch tag
+            fsname = name.split(":")[0]
             for chglogname in ["changelog.Debian.gz", "changelog.gz"]:
                 changelog_path = os.path.join(
-                    tmp,"usr/share/doc",name, chglogname)
-                if not os.path.exists(changelog_path) or os.path.islink(changelog_path):
+                    tmp,"usr/share/doc", fsname, chglogname)
+                if not os.path.exists(changelog_path):
                     continue
                 if not name in changelogs:
                     changelogs[name] = ""
