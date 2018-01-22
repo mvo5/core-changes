@@ -37,10 +37,12 @@ class tmpdir:
 
 class Change:
     """ Change contains the changes from old_version to new version """
-    def __init__(self, old_version, new_version, date_new, diff, changelogs):
-        # type: (str, str, datetime.datetime, Dict[str, Tuple[str, str]], Dict[str, str]) -> None
+    def __init__(self, old_version, old_revno, new_version, new_revno, date_new, diff, changelogs):
+        # type: (str, str, str, str, datetime.datetime, Dict[str, Tuple[str, str]], Dict[str, str]) -> None
         self.old_version = old_version
+        self.old_revno = old_revno
         self.new_version = new_version
+        self.new_revno = new_revno
         self.build_date = date_new
         self.pkg_changes = diff
         self.changelogs = changelogs
@@ -74,6 +76,15 @@ def core_version(snap):
                 if line.startswith("VERSION="):
                     version = line.split("=")[1]
     return version
+
+
+def core_revno(snap):
+    # type: (str) -> str
+    snap = os.path.basename(snap)
+    m = re.match(r"([a-zA-Z0-9]+)_([0-9]+)\.snap", snap)
+    if not m:
+        raise Exception("cannot extract revno from %s" % snap)
+    return m.group(2)
 
 
 def core_debs(snap):
@@ -158,8 +169,8 @@ def build_date(snap):
     # type: (str) -> datetime.datetime
     """build_date returns the build date of the given snap"""
     with tmpdir() as tmp:
-        unsquashfs(tmp, snap, "/usr/lib/snapd/info")
-        mtime = os.path.getmtime(os.path.join(tmp, "usr/lib/snapd/info"))
+        unsquashfs(tmp, snap, "/usr/share/snappy/dpkg.list")
+        mtime = os.path.getmtime(os.path.join(tmp, "usr/share/snappy/dpkg.list"))
         return datetime.datetime.fromtimestamp(mtime)
 
 
@@ -167,11 +178,13 @@ def snap_change(old_snap, new_snap):
     # type: (str, str) -> Change
     """snap_change returns a Change object for the given two snaps"""
     old_ver = core_version(old_snap)
+    old_revno = core_revno(old_snap)
     new_ver= core_version(new_snap)
+    new_revno = core_revno(new_snap)
     diff = debs_delta(core_debs(old_snap), core_debs(new_snap))
     changelogs = deb_changelogs(new_snap, diff)
     bd = build_date(new_snap)
-    return Change(old_ver, new_ver, bd, diff, changelogs)
+    return Change(old_ver, old_revno, new_ver, new_revno, bd, diff, changelogs)
 
 
 def all_snap_changes(archive_dir):
@@ -194,11 +207,16 @@ def render_as_text(changes):
     # type: (List[Change]) -> None
     """render_as_text renders the given changes via text output"""
     for chg in changes:
-        print("# Core snap %s to %s (build %s)" % (chg.old_version, chg.new_version, chg.build_date))
+        print("# Core snap %s (r%s) to %s (r%s) (build %s)" % (chg.old_version, chg.old_revno, chg.new_version, chg.new_revno, chg.build_date))
         print("\n")
         print("## Package changes\n")
         for deb, (old_ver, new_ver) in sorted(chg.pkg_changes.items()):
-            print(" * %s: %s -> %s" % (deb, old_ver, new_ver))
+            if old_ver == "":
+                print(" * %s added" % deb)
+            elif new_ver == "":
+                print(" * %s removed" % deb)
+            else:
+                print(" * %s: %s -> %s" % (deb, old_ver, new_ver))
         print("\n")
         print("## Changelogs\n")
         for name, changelog in chg.changelogs.items():
@@ -211,7 +229,7 @@ def gen_html_filename(chg):
     """
     gen_html_filename returns the filename of a change for the html renderer
     """
-    return "%s_%s.html" % (chg.old_version, chg.new_version)
+    return "%sr%s_%sr%s.html" % (chg.old_version, chg.old_revno, chg.new_version, chg.new_revno)
 
 
 def render_as_html(changes, output_dir, channel):

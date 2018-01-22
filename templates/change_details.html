@@ -2,7 +2,7 @@
 {% block title %}Changes from {{ change.old_version }} to {{ change.new_version }}{% endblock %}
 
 {% block content %}
-<h1>Changes from {{ change.old_version }} to {{ change.new_version }}</h1>
+<h1>Changes from {{ change.old_version }} (r{{ change.old_revno }}) to {{ change.new_version }} (r{{ change.new_revno }})</h1>
 
 <h2>Summary</h2>
 
@@ -14,7 +14,13 @@
 <ul>
   {% for pkg, from_to in change.pkg_changes |dictsort %}
   <li>
+    {% if from_to[0] == "" %}
+    <a href="#{{ pkg }}">{{ pkg }} added
+    {% elif from_to[1] == "" %}
+    {{ pkg }} removed
+    {% else %}
     <a href="#{{ pkg }}">{{ pkg }}</a> from {{ from_to[0] }} to {{ from_to[1] }}
+    {% endif %}
   </li>
   {% endfor %}
 </ul>

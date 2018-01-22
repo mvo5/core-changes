@@ -10,7 +10,7 @@
 
 <ul>
   {% for chg in changes %}
-  <li><a href="{{ chg|gen_html_filename }}">{{chg.old_version}} to {{chg.new_version}}</a> (build on {{chg.build_date}})</li>
+  <li><a href="{{ chg|gen_html_filename }}">{{chg.old_version}} (r{{chg.old_revno}}) to {{chg.new_version}} (r{{chg.new_revno}})</a> (build on {{chg.build_date}})</li>
   {% endfor %}
 </ul>
 {% endblock %}
