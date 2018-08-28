@@ -10,7 +10,7 @@ for snap in core core18 core16; do
     PATH="$BASE/bin":$PATH
 
     # generate per-channel changes
-    for ch in stable candidate beta edge; do
+    for ch in edge beta candidate stable; do
         ARCHIVE="$BASE"/archive-"$snap"-"$ch"
         mkdir -p "$ARCHIVE"
 
