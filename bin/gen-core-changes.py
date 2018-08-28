@@ -70,7 +70,10 @@ def core_version(snap):
     version = "unknown"
     with tmpdir() as tmp:
         unsquashfs(tmp, snap, "/usr/lib/snapd/info")
-        with open(os.path.join(tmp, "usr/lib/snapd/info")) as fp:
+        infop = os.path.join(tmp, "usr/lib/snapd/info")
+        if not os.path.exists(infop):
+            return "unknown"
+        with open(infop) as fp:
             for line in fp.readlines():
                 line = line.strip()
                 if line.startswith("VERSION="):
