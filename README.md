@@ -8,7 +8,7 @@ tool.
 
 Run:
 
-    gen-core-changes --markdown /path/to/directory/with/core/snaps
+    $ bin/gen-core-changes --markdown /path/to/directory/with/core/snaps
 
 It will generate a markdown document that contains the changes
 for each core.

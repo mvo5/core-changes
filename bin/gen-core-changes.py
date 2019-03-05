@@ -15,6 +15,7 @@ import sys
 import tempfile
 
 import jinja2
+import sqlite3
 
 try:
     from typing import Dict, List, Tuple
@@ -23,6 +24,86 @@ try:
     Tuple  # pyflakes
 except ImportError:
     pass
+
+
+class CoreChangesDB:
+    NAME="known-cores.db"
+    def __init__(self):
+        if not os.path.exists(self.NAME):
+            with sqlite3.connect(self.NAME) as con:
+                con.executescript("""
+                CREATE TABLE IF NOT EXISTS "cores"
+                (
+                  [core_revno] INTEGER PRIMARY KEY NOT NULL,
+                  [core_version] TEXT,
+                  [build_date] TEXT
+                );
+                CREATE TABLE IF NOT EXISTS "debs"
+                (
+                  [deb_name] TEXT NOT NULL,
+                  [deb_version] TEXT NOT NULL,
+                  [changelog] TEXT,
+                  PRIMARY KEY (deb_name, deb_version)
+                );
+                CREATE TABLE IF NOT EXISTS "coresdebs"
+                (
+                  [core_revno] INTEGER NOT NULL,
+                  [deb_name] TEXT NOT NULL,
+                  [deb_version] TEXT NOT NULL,
+                  PRIMARY KEY (core_revno, deb_name, deb_version)
+                );
+                """)
+    def add_core(self, snap):
+        ver= core_version(snap)
+        revno = core_revno(snap)
+        bd = build_date(snap)
+        debs = core_debs(snap)
+        changelogs = deb_changelogs_all(snap)
+        with sqlite3.connect(self.NAME) as con:
+            # add snap
+            con.execute("""
+            INSERT OR IGNORE INTO "cores" (core_revno, core_version, build_date)
+            VALUES (?, ?, ?)
+            """, (revno, ver, bd))
+            # add debs
+            for deb_name, deb_ver in debs.items():
+                deb_changelog = changelogs.get(deb_name)
+                con.execute("""
+                INSERT OR IGNORE INTO "debs" (deb_version, deb_name, changelog)
+                VALUES (?, ?, ?)
+                """, (deb_name, deb_ver, deb_changelog))
+                # add relation
+                con.execute("""
+                INSERT OR IGNORE INTO "coresdebs" (core_revno, deb_name, deb_version)
+                VALUES (?, ?, ?)
+                """, (revno, deb_name, deb_ver))
+
+
+def deb_changelogs_all(new_snap):
+    # type: (str) -> Dict[str, str]
+    """
+    deb_changelogs returns all changelogs from snap for the given pkg_changes
+    """
+    changelogs = {}  # type: Dict[str, str]
+    with tmpdir() as tmp:
+        unsquashfs(tmp, new_snap, "/usr/share/doc/*")
+        for name in glob.glob(os.path.join(tmp, "/usr/share/doc/*")):
+            # split of multi-arch tag
+            fsname = name.split(":")[0]
+            debname = os.path.basename(name)
+            for chglogname in ["changelog.Debian.gz", "changelog.gz"]:
+                changelog_path = os.path.join(
+                    tmp,"usr/share/doc", fsname, chglogname)
+                if not os.path.exists(changelog_path):
+                    continue
+                if not name in changelogs:
+                    changelogs[debname] = ""
+                with gzip.open(changelog_path) as changelog:
+                    changelog_byte = changelog.read()
+                    changelogs[debname] = changelog_byte.decode("utf-8", errors="xmlcharrefreplace")
+                break
+    return changelogs
+
 
 
 class tmpdir:
@@ -72,7 +153,7 @@ def core_version(snap):
         unsquashfs(tmp, snap, "/usr/lib/snapd/info")
         infop = os.path.join(tmp, "usr/lib/snapd/info")
         if not os.path.exists(infop):
-            return "unknown"
+            return version
         with open(infop) as fp:
             for line in fp.readlines():
                 line = line.strip()
@@ -190,15 +271,18 @@ def snap_change(old_snap, new_snap):
     return Change(old_ver, old_revno, new_ver, new_revno, bd, diff, changelogs)
 
 
+def sorted_snaps_in_dir(archive_dir):
+    return sorted(
+        glob.glob(archive_dir+"/*.snap"), key=lambda p: int(re.match(r'.*_([0-9]+).snap', p).group(1)))
+
+
 def all_snap_changes(archive_dir):
     # type: (str) -> List[Change]
     """
     all_snap_changes generates a list of changes for all snaps in archive_dir
     """
     all_changes = []  # type: List[Change]
-    snaps=sorted(
-        glob.glob(archive_dir+"/*.snap"), key=lambda p: int(re.match(r'.*_([0-9]+).snap', p).group(1)))
-    for i in range(len(snaps)-1):
+    for i in range(len(sorted_snaps_in_dir(archive_dir))-1):
         a = snaps[i]
         b = snaps[i+1]
         all_changes.append(snap_change(a,b))
@@ -264,7 +348,16 @@ if __name__ == "__main__":
     parser.add_argument('--html', action='store_true')
     parser.add_argument('--output-dir', default="./html")
     parser.add_argument('--channel', default='unknown')
+    parser.add_argument('--import-to-db', action='store_true')
     args = parser.parse_args()
+
+    if args.import_to_db:
+        imported = 0
+        db = CoreChangesDB()
+        for snap in sorted_snaps_in_dir(args.archive_dir):
+            db.add_core(snap)
+            imported += 1
+        sys.exit(0)
     
     all_changes = all_snap_changes(args.archive_dir)
     if args.markdown:
