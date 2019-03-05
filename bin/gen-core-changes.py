@@ -29,14 +29,13 @@ except ImportError:
 class CoreChangesDB:
     NAME="known-cores.db"
     def __init__(self):
-        if not os.path.exists(self.NAME):
-            with sqlite3.connect(self.NAME) as con:
-                con.executescript("""
+        with sqlite3.connect(self.NAME) as con:
+            con.executescript("""
                 CREATE TABLE IF NOT EXISTS "cores"
                 (
                   [core_revno] INTEGER PRIMARY KEY NOT NULL,
                   [core_version] TEXT,
-                  [build_date] TEXT
+                  [core_build_date] TEXT
                 );
                 CREATE TABLE IF NOT EXISTS "debs"
                 (
@@ -52,7 +51,7 @@ class CoreChangesDB:
                   [deb_version] TEXT NOT NULL,
                   PRIMARY KEY (core_revno, deb_name, deb_version)
                 );
-                """)
+            """)
     def add_core(self, snap):
         ver= core_version(snap)
         revno = core_revno(snap)
@@ -62,14 +61,14 @@ class CoreChangesDB:
         with sqlite3.connect(self.NAME) as con:
             # add snap
             con.execute("""
-            INSERT OR IGNORE INTO "cores" (core_revno, core_version, build_date)
+            INSERT OR IGNORE INTO "cores" (core_revno, core_version, core_build_date)
             VALUES (?, ?, ?)
             """, (revno, ver, bd))
             # add debs
             for deb_name, deb_ver in debs.items():
                 deb_changelog = changelogs.get(deb_name)
                 con.execute("""
-                INSERT OR IGNORE INTO "debs" (deb_version, deb_name, changelog)
+                INSERT OR IGNORE INTO "debs" ( deb_name, deb_version, changelog)
                 VALUES (?, ?, ?)
                 """, (deb_name, deb_ver, deb_changelog))
                 # add relation
@@ -77,6 +76,47 @@ class CoreChangesDB:
                 INSERT OR IGNORE INTO "coresdebs" (core_revno, deb_name, deb_version)
                 VALUES (?, ?, ?)
                 """, (revno, deb_name, deb_ver))
+    def _get_changelog_from_db(self, con, deb_name, deb_ver):
+        cur = con.execute("""
+        SELECT changelog FROM debs WHERE deb_name=? AND deb_version=?
+        """, (deb_name, deb_ver))
+        return cur.fetchall()[0][0]
+    def _get_core_version_from_db(self, con, core_revno):
+        cur = con.execute("""
+        SELECT core_version FROM cores WHERE core_revno=?
+        """, (core_revno,))
+        return cur.fetchall()[0][0]
+    def _get_core_build_date_from_db(self, con, core_revno):
+        cur = con.execute("""
+        SELECT core_build_date FROM cores WHERE core_revno=?
+        """, (core_revno,))
+        return cur.fetchall()[0][0]
+    def gen_change(self, old_revno, new_revno):
+        changelogs = {}
+        pkg_diff = {}
+        with sqlite3.connect(self.NAME) as con:
+            new_ver = self._get_core_version_from_db(con, new_revno)
+            old_ver = self._get_core_version_from_db(con, old_revno)
+            bd =  self._get_core_build_date_from_db(con, old_revno)
+            cur = con.execute("""
+            SELECT t1.deb_name, t1.deb_version, t2.deb_version 
+            FROM coresdebs AS t1 
+            JOIN coresdebs AS t2 ON t1.deb_name = t2.deb_name and t1.deb_version != t2.deb_version 
+            WHERE t1.core_revno=? and t2.core_revno=?;
+            """, (old_revno, new_revno))
+            for row in cur.fetchall():
+                deb_name, new_debver, old_debver = row[0], row[1], row[2]
+                pkg_diff[deb_name] = (new_debver, old_debver)
+                new_cl = self._get_changelog_from_db(con, deb_name, new_debver)
+                changelog = []
+                if new_cl:
+                    for line in new_cl.split("\n"):
+                        # FIXME: urgh
+                        if "("+old_debver+")" in line:
+                            break
+                        changelog.append(line)
+                changelogs[deb_name] = "\n".join(changelog)
+        return Change(old_ver, old_revno, new_ver, new_revno, bd, pkg_diff, changelogs)
 
 
 def deb_changelogs_all(new_snap):
@@ -349,6 +389,7 @@ if __name__ == "__main__":
     parser.add_argument('--output-dir', default="./html")
     parser.add_argument('--channel', default='unknown')
     parser.add_argument('--import-to-db', action='store_true')
+    parser.add_argument('--gen-from-db', action='store_true')
     args = parser.parse_args()
 
     if args.import_to_db:
@@ -357,6 +398,11 @@ if __name__ == "__main__":
         for snap in sorted_snaps_in_dir(args.archive_dir):
             db.add_core(snap)
             imported += 1
+        sys.exit(0)
+    if args.gen_from_db:
+        db = CoreChangesDB()
+        ch = db.gen_change(5381, 6567)
+        render_as_text([ch])
         sys.exit(0)
     
     all_changes = all_snap_changes(args.archive_dir)
