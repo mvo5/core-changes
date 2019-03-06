@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 
+import apt
 import jinja2
 import sqlite3
 
@@ -111,9 +112,10 @@ class CoreChangesDB:
                 changelog = []
                 if new_cl:
                     for line in new_cl.split("\n"):
-                        # FIXME: urgh
-                        if "("+old_debver+")" in line:
-                            break
+                        m=re.match(r'[a-z0-9]+ \((.*)\) [a-z-]+; urgency=.*', line)
+                        if m:
+                            if apt.apt_pkg.version_compare(m.group(1), old_debver) < 0:
+                                break
                         changelog.append(line)
                 changelogs[deb_name] = "\n".join(changelog)
         return Change(old_ver, old_revno, new_ver, new_revno, bd, pkg_diff, changelogs)
@@ -127,13 +129,13 @@ def deb_changelogs_all(new_snap):
     changelogs = {}  # type: Dict[str, str]
     with tmpdir() as tmp:
         unsquashfs(tmp, new_snap, "/usr/share/doc/*")
-        for name in glob.glob(os.path.join(tmp, "/usr/share/doc/*")):
+        for name in glob.glob(os.path.join(tmp, "usr/share/doc/*")):
             # split of multi-arch tag
             fsname = name.split(":")[0]
             debname = os.path.basename(name)
             for chglogname in ["changelog.Debian.gz", "changelog.gz"]:
                 changelog_path = os.path.join(
-                    tmp,"usr/share/doc", fsname, chglogname)
+                    tmp, "usr/share/doc", fsname, chglogname)
                 if not os.path.exists(changelog_path):
                     continue
                 if not name in changelogs:
