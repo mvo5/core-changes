@@ -77,32 +77,22 @@ class CoreChangesDB:
                 INSERT OR IGNORE INTO "coresdebs" (core_revno, deb_name, deb_version)
                 VALUES (?, ?, ?)
                 """, (revno, deb_name, deb_ver))
-    def _get_core_version_from_db(self, con, core_revno):
-        cur = con.execute("""
-        SELECT core_version FROM cores WHERE core_revno=?
-        """, (core_revno,))
-        return cur.fetchall()[0][0]
-    def _get_core_build_date_from_db(self, con, core_revno):
-        cur = con.execute("""
-        SELECT core_build_date FROM cores WHERE core_revno=?
-        """, (core_revno,))
-        return cur.fetchall()[0][0]
     def gen_change(self, old_revno, new_revno):
         changelogs = {}
         pkg_diff = {}
         with sqlite3.connect(self.NAME) as con:
-            new_ver = self._get_core_version_from_db(con, new_revno)
-            old_ver = self._get_core_version_from_db(con, old_revno)
-            bd =  self._get_core_build_date_from_db(con, old_revno)
             cur = con.execute("""
-            SELECT new.deb_name, new.deb_version, old.deb_version, debs.changelog, cores.core_build_date
-            FROM coresdebs AS old, debs, cores
+            SELECT new.deb_name, new.deb_version, old.deb_version, debs.changelog, cores.core_build_date, cores.core_version, old_cores.core_version
+            FROM coresdebs AS old, debs, cores, cores AS old_cores
             JOIN coresdebs AS new ON old.deb_name = new.deb_name and new.deb_version != old.deb_version
-            WHERE old.core_revno=? and new.core_revno=? and debs.deb_name == new.deb_name and debs.deb_version == new.deb_version and cores.core_revno=?
-            """, (old_revno, new_revno, new_revno))
+            WHERE old.core_revno=? and new.core_revno=? and debs.deb_name == new.deb_name and debs.deb_version == new.deb_version and new.core_revno = cores.core_revno and old.core_revno = old_cores.core_revno
+            """, (old_revno, new_revno))
             for row in cur.fetchall():
                 deb_name, new_debver, old_debver = row[0], row[1], row[2]
                 new_cl = row[3]
+                bd = row[4]
+                new_ver = row[5]
+                old_ver = row[6]
                 pkg_diff[deb_name] = (new_debver, old_debver)
                 changelog = []
                 if new_cl:
