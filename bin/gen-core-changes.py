@@ -77,11 +77,6 @@ class CoreChangesDB:
                 INSERT OR IGNORE INTO "coresdebs" (core_revno, deb_name, deb_version)
                 VALUES (?, ?, ?)
                 """, (revno, deb_name, deb_ver))
-    def _get_changelog_from_db(self, con, deb_name, deb_ver):
-        cur = con.execute("""
-        SELECT changelog FROM debs WHERE deb_name=? AND deb_version=?
-        """, (deb_name, deb_ver))
-        return cur.fetchall()[0][0]
     def _get_core_version_from_db(self, con, core_revno):
         cur = con.execute("""
         SELECT core_version FROM cores WHERE core_revno=?
@@ -100,15 +95,15 @@ class CoreChangesDB:
             old_ver = self._get_core_version_from_db(con, old_revno)
             bd =  self._get_core_build_date_from_db(con, old_revno)
             cur = con.execute("""
-            SELECT t1.deb_name, t1.deb_version, t2.deb_version 
-            FROM coresdebs AS t1 
-            JOIN coresdebs AS t2 ON t1.deb_name = t2.deb_name and t1.deb_version != t2.deb_version 
-            WHERE t1.core_revno=? and t2.core_revno=?;
-            """, (old_revno, new_revno))
+            SELECT new.deb_name, new.deb_version, old.deb_version, debs.changelog, cores.core_build_date
+            FROM coresdebs AS old, debs, cores
+            JOIN coresdebs AS new ON old.deb_name = new.deb_name and new.deb_version != old.deb_version
+            WHERE old.core_revno=? and new.core_revno=? and debs.deb_name == new.deb_name and debs.deb_version == new.deb_version and cores.core_revno=?
+            """, (old_revno, new_revno, new_revno))
             for row in cur.fetchall():
                 deb_name, new_debver, old_debver = row[0], row[1], row[2]
+                new_cl = row[3]
                 pkg_diff[deb_name] = (new_debver, old_debver)
-                new_cl = self._get_changelog_from_db(con, deb_name, new_debver)
                 changelog = []
                 if new_cl:
                     for line in new_cl.split("\n"):
@@ -391,7 +386,7 @@ if __name__ == "__main__":
     parser.add_argument('--output-dir', default="./html")
     parser.add_argument('--channel', default='unknown')
     parser.add_argument('--import-to-db', action='store_true')
-    parser.add_argument('--gen-from-db', action='store_true')
+    parser.add_argument('--gen-from-db')
     args = parser.parse_args()
 
     if args.import_to_db:
@@ -403,7 +398,8 @@ if __name__ == "__main__":
         sys.exit(0)
     if args.gen_from_db:
         db = CoreChangesDB()
-        ch = db.gen_change(5381, 6567)
+        old_rev, new_rev = args.gen_from_db.split(",")
+        ch = db.gen_change(old_rev, new_rev)
         render_as_text([ch])
         sys.exit(0)
     
