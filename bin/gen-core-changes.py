@@ -61,24 +61,29 @@ def unsquashfs(tmp, snap, data=""):
         subprocess.check_call(
             ["unsquashfs", "-f", "-d", tmp, snap, data], stdout=devnull)
     
-
 def core_version(snap):
     # type: (str) -> str
     """
     core_version returns the version number of snapd in the given core snap
     """
-    version = "unknown"
+    version = ""
     with tmpdir() as tmp:
         unsquashfs(tmp, snap, "/usr/lib/snapd/info")
         infop = os.path.join(tmp, "usr/lib/snapd/info")
         if not os.path.exists(infop):
-            return "unknown"
+            # try meta/snap.yaml
+            unsquashfs(tmp, snap, "/meta/snap.yaml")
+            infop = os.path.join(tmp, "meta/snap.yaml")
         with open(infop) as fp:
             for line in fp.readlines():
                 line = line.strip()
                 if line.startswith("VERSION="):
                     version = line.split("=")[1]
-    return version
+                    return version
+                if line.startswith("version:"):
+                    version = line.split(":")[1]
+                    return version.strip()
+    return "unknown"
 
 
 def core_revno(snap):
