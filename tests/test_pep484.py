@@ -14,7 +14,6 @@ def hasMyPy():
 
 
 class PackagePep484TestCase(unittest.TestCase):
-
     @unittest.skipIf(not hasMyPy(), "no mypy available")
     def test_pep484_clean(self):
         top_src_dir = os.path.join(os.path.dirname(__file__), "..", "bin")

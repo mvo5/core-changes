@@ -21,6 +21,7 @@ import sqlite3
 
 try:
     from typing import Dict, List, Tuple
+
     Dict  # pyflakes
     List  # pyflakes
     Tuple  # pyflakes
@@ -29,10 +30,12 @@ except ImportError:
 
 
 class CoreChangesDB:
-    NAME="known-cores.db"
+    NAME = "known-cores.db"
+
     def __init__(self):
         with sqlite3.connect(self.NAME) as con:
-            con.executescript("""
+            con.executescript(
+                """
                 CREATE TABLE IF NOT EXISTS "cores"
                 (
                   [core_revno] INTEGER PRIMARY KEY NOT NULL,
@@ -53,41 +56,56 @@ class CoreChangesDB:
                   [deb_version] TEXT NOT NULL,
                   PRIMARY KEY (core_revno, deb_name, deb_version)
                 );
-            """)
+            """
+            )
+
     def add_core(self, snap):
-        ver= core_version(snap)
+        ver = core_version(snap)
         revno = core_revno(snap)
         bd = build_date(snap)
         debs = core_debs(snap)
         changelogs = deb_changelogs_all(snap)
         with sqlite3.connect(self.NAME) as con:
             # add snap
-            con.execute("""
+            con.execute(
+                """
             INSERT OR IGNORE INTO "cores" (core_revno, core_version, core_build_date)
             VALUES (?, ?, ?)
-            """, (revno, ver, bd))
+            """,
+                (revno, ver, bd),
+            )
             # add debs
             for deb_name, deb_ver in debs.items():
                 deb_changelog = changelogs.get(deb_name)
-                con.execute("""
+                con.execute(
+                    """
                 INSERT OR IGNORE INTO "debs" ( deb_name, deb_version, changelog)
                 VALUES (?, ?, ?)
-                """, (deb_name, deb_ver, deb_changelog))
+                """,
+                    (deb_name, deb_ver, deb_changelog),
+                )
                 # add relation
-                con.execute("""
+                con.execute(
+                    """
                 INSERT OR IGNORE INTO "coresdebs" (core_revno, deb_name, deb_version)
                 VALUES (?, ?, ?)
-                """, (revno, deb_name, deb_ver))
+                """,
+                    (revno, deb_name, deb_ver),
+                )
+
     def gen_change(self, old_revno, new_revno):
         changelogs = {}
         pkg_diff = {}
         with sqlite3.connect(self.NAME) as con:
-            cur = con.execute("""
+            cur = con.execute(
+                """
             SELECT new.deb_name, new.deb_version, old.deb_version, debs.changelog, cores.core_build_date, cores.core_version, old_cores.core_version
             FROM coresdebs AS old, debs, cores, cores AS old_cores
             JOIN coresdebs AS new ON old.deb_name = new.deb_name and new.deb_version != old.deb_version
             WHERE old.core_revno=? and new.core_revno=? and debs.deb_name == new.deb_name and debs.deb_version == new.deb_version and new.core_revno = cores.core_revno and old.core_revno = old_cores.core_revno
-            """, (old_revno, new_revno))
+            """,
+                (old_revno, new_revno),
+            )
             for row in cur.fetchall():
                 deb_name, new_debver, old_debver = row[0], row[1], row[2]
                 new_cl = row[3]
@@ -98,7 +116,7 @@ class CoreChangesDB:
                 changelog = []
                 if new_cl:
                     for line in new_cl.split("\n"):
-                        m=re.match(r'[a-z0-9]+ \((.*)\) [a-z-]+; urgency=.*', line)
+                        m = re.match(r"[a-z0-9]+ \((.*)\) [a-z-]+; urgency=.*", line)
                         if m:
                             if apt.apt_pkg.version_compare(m.group(1), old_debver) < 0:
                                 break
@@ -120,33 +138,38 @@ def deb_changelogs_all(new_snap):
             fsname = name.split(":")[0]
             debname = os.path.basename(name)
             for chglogname in ["changelog.Debian.gz", "changelog.gz"]:
-                changelog_path = os.path.join(
-                    tmp, "usr/share/doc", fsname, chglogname)
+                changelog_path = os.path.join(tmp, "usr/share/doc", fsname, chglogname)
                 if not os.path.exists(changelog_path):
                     continue
                 if not name in changelogs:
                     changelogs[debname] = ""
                 with gzip.open(changelog_path) as changelog:
                     changelog_byte = changelog.read()
-                    changelogs[debname] = changelog_byte.decode("utf-8", errors="xmlcharrefreplace")
+                    changelogs[debname] = changelog_byte.decode(
+                        "utf-8", errors="xmlcharrefreplace"
+                    )
                 break
     return changelogs
 
 
-
 class tmpdir:
     """ tmpdir provides a temporary directory via a context manager"""
+
     def __enter__(self):
         # type: () -> str
         self.tmp = tempfile.mkdtemp()
         return self.tmp
+
     def __exit__(self, *args):
         shutil.rmtree(self.tmp)
 
 
 class Change:
     """ Change contains the changes from old_version to new version """
-    def __init__(self, old_version, old_revno, new_version, new_revno, date_new, diff, changelogs):
+
+    def __init__(
+        self, old_version, old_revno, new_version, new_revno, date_new, diff, changelogs
+    ):
         # type: (str, str, str, str, datetime.datetime, Dict[str, Tuple[str, str]], Dict[str, str]) -> None
         self.old_version = old_version
         self.old_revno = old_revno
@@ -155,6 +178,7 @@ class Change:
         self.build_date = date_new
         self.pkg_changes = diff
         self.changelogs = changelogs
+
     def __repr__(self):
         return "<Change old=%s new=%s>" % (self.old_version, self.new_version)
 
@@ -168,8 +192,10 @@ def unsquashfs(tmp, snap, data=""):
     """
     with open(os.devnull, "w") as devnull:
         subprocess.check_call(
-            ["unsquashfs", "-f", "-d", tmp, snap, data], stdout=devnull)
-    
+            ["unsquashfs", "-f", "-d", tmp, snap, data], stdout=devnull
+        )
+
+
 def core_version(snap):
     # type: (str) -> str
     """
@@ -215,7 +241,7 @@ def core_debs(snap):
                 line = line.strip()
                 if not line.startswith("ii"):
                     continue
-                l = re.split(r'\s+',line)
+                l = re.split(r"\s+", line)
                 name = l[1]
                 ver = l[2]
                 pkgs[name] = ver
@@ -252,11 +278,11 @@ def changelog_until(changelog_path, old_version):
             line = raw.decode("utf-8", errors="xmlcharrefreplace")
             line = line.rstrip()
             # FIXME: make this smater
-            if "("+old_version+")" in line:
+            if "(" + old_version + ")" in line:
                 break
             lines.append(line)
     return "\n".join(lines)
-    
+
 
 def deb_changelogs(new_snap, pkg_changes):
     # type: (str, Dict[str, Tuple[str, str]]) -> Dict[str, str]
@@ -271,8 +297,7 @@ def deb_changelogs(new_snap, pkg_changes):
             # split of multi-arch tag
             fsname = name.split(":")[0]
             for chglogname in ["changelog.Debian.gz", "changelog.gz"]:
-                changelog_path = os.path.join(
-                    tmp,"usr/share/doc", fsname, chglogname)
+                changelog_path = os.path.join(tmp, "usr/share/doc", fsname, chglogname)
                 if not os.path.exists(changelog_path):
                     continue
                 if not name in changelogs:
@@ -296,7 +321,7 @@ def snap_change(old_snap, new_snap):
     """snap_change returns a Change object for the given two snaps"""
     old_ver = core_version(old_snap)
     old_revno = core_revno(old_snap)
-    new_ver= core_version(new_snap)
+    new_ver = core_version(new_snap)
     new_revno = core_revno(new_snap)
     diff = debs_delta(core_debs(old_snap), core_debs(new_snap))
     changelogs = deb_changelogs(new_snap, diff)
@@ -306,7 +331,9 @@ def snap_change(old_snap, new_snap):
 
 def sorted_snaps_in_dir(archive_dir):
     return sorted(
-        glob.glob(archive_dir+"/*.snap"), key=lambda p: int(re.match(r'.*_([0-9]+).snap', p).group(1)))
+        glob.glob(archive_dir + "/*.snap"),
+        key=lambda p: int(re.match(r".*_([0-9]+).snap", p).group(1)),
+    )
 
 
 def all_snap_changes(archive_dir):
@@ -314,20 +341,20 @@ def all_snap_changes(archive_dir):
     """
     all_snap_changes generates a list of changes for all snaps in archive_dir
     """
+
     def _key(filename):
         # type: (str) -> int
-        m = re.match(r'.*_([0-9]+).snap', filename)
+        m = re.match(r".*_([0-9]+).snap", filename)
         if m is None:
             raise Exception("cannot extra revision from %s" % filename)
         return int(m.group(1))
 
     all_changes = []  # type: List[Change]
-    snaps=sorted(
-        glob.glob(archive_dir+"/*.snap"), key=_key)
-    for i in range(len(snaps)-1):
+    snaps = sorted(glob.glob(archive_dir + "/*.snap"), key=_key)
+    for i in range(len(snaps) - 1):
         a = snaps[i]
-        b = snaps[i+1]
-        all_changes.append(snap_change(a,b))
+        b = snaps[i + 1]
+        all_changes.append(snap_change(a, b))
     all_changes.reverse()
     return all_changes
 
@@ -336,7 +363,16 @@ def render_as_text(changes):
     # type: (List[Change]) -> None
     """render_as_text renders the given changes via text output"""
     for chg in changes:
-        print("# Core snap %s (r%s) to %s (r%s) (build %s)" % (chg.old_version, chg.old_revno, chg.new_version, chg.new_revno, chg.build_date))
+        print(
+            "# Core snap %s (r%s) to %s (r%s) (build %s)"
+            % (
+                chg.old_version,
+                chg.old_revno,
+                chg.new_version,
+                chg.new_revno,
+                chg.build_date,
+            )
+        )
         print("\n")
         print("## Package changes\n")
         for deb, (old_ver, new_ver) in sorted(chg.pkg_changes.items()):
@@ -358,41 +394,47 @@ def gen_html_filename(chg):
     """
     gen_html_filename returns the filename of a change for the html renderer
     """
-    return "%sr%s_%sr%s.html" % (chg.old_version, chg.old_revno, chg.new_version, chg.new_revno)
+    return "%sr%s_%sr%s.html" % (
+        chg.old_version,
+        chg.old_revno,
+        chg.new_version,
+        chg.new_revno,
+    )
 
 
 def render_as_html(changes, output_dir, channel):
     """render_as_html renders the given changes as html"""
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    loader=jinja2.FileSystemLoader(
-        os.path.join(os.path.dirname(__file__), "..", "templates"))
+    loader = jinja2.FileSystemLoader(
+        os.path.join(os.path.dirname(__file__), "..", "templates")
+    )
     env = jinja2.Environment(loader=loader, autoescape=True)
     env.filters["gen_html_filename"] = gen_html_filename
     env.globals["now"] = datetime.datetime.utcnow().replace(microsecond=0)
     env.globals["channel"] = channel
     with open(os.path.join(output_dir, "index.html"), "wb") as index_fp:
-        index = env.get_template('index.html')
+        index = env.get_template("index.html")
         output = index.render(changes=changes)
         index_fp.write(output.encode("utf-8"))
     for chg in changes:
         details_html = os.path.join(output_dir, gen_html_filename(chg))
         with open(details_html, "wb") as details_fp:
-            details = env.get_template('change_details.html')
+            details = env.get_template("change_details.html")
             output = details.render(change=chg)
             details_fp.write(output.encode("utf-8"))
 
-   
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('archive_dir')
-    parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('--markdown', action='store_true')
-    parser.add_argument('--html', action='store_true')
-    parser.add_argument('--output-dir', default="./html")
-    parser.add_argument('--channel', default='unknown')
-    parser.add_argument('--import-to-db', action='store_true')
-    parser.add_argument('--gen-from-db')
+    parser.add_argument("archive_dir")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--markdown", action="store_true")
+    parser.add_argument("--html", action="store_true")
+    parser.add_argument("--output-dir", default="./html")
+    parser.add_argument("--channel", default="unknown")
+    parser.add_argument("--import-to-db", action="store_true")
+    parser.add_argument("--gen-from-db")
     args = parser.parse_args()
 
     if args.verbose:
@@ -412,7 +454,7 @@ if __name__ == "__main__":
         ch = db.gen_change(old_rev, new_rev)
         render_as_text([ch])
         sys.exit(0)
-    
+
     all_changes = all_snap_changes(args.archive_dir)
     if args.markdown:
         render_as_text(all_changes)
