@@ -30,10 +30,9 @@ except ImportError:
 
 
 class CoreChangesDB:
-    NAME = "known-cores.db"
-
-    def __init__(self):
-        with sqlite3.connect(self.NAME) as con:
+    def __init__(self, dbpath):
+        self._dbpath = dbpath
+        with sqlite3.connect(self._dbpath) as con:
             con.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS "cores"
@@ -65,7 +64,7 @@ class CoreChangesDB:
         bd = build_date(snap)
         debs = core_debs(snap)
         changelogs = deb_changelogs_all(snap)
-        with sqlite3.connect(self.NAME) as con:
+        with sqlite3.connect(self._dbpath) as con:
             # add snap
             con.execute(
                 """
@@ -96,7 +95,7 @@ class CoreChangesDB:
     def gen_change(self, old_revno, new_revno):
         changelogs = {}
         pkg_diff = {}
-        with sqlite3.connect(self.NAME) as con:
+        with sqlite3.connect(self._dbpath) as con:
             cur = con.execute(
                 """
             SELECT new.deb_name, new.deb_version, old.deb_version, debs.changelog, cores.core_build_date, cores.core_version, old_cores.core_version
@@ -141,7 +140,7 @@ def deb_changelogs_all(new_snap):
                 changelog_path = os.path.join(tmp, "usr/share/doc", fsname, chglogname)
                 if not os.path.exists(changelog_path):
                     continue
-                if not name in changelogs:
+                if name not in changelogs:
                     changelogs[debname] = ""
                 with gzip.open(changelog_path) as changelog:
                     changelog_byte = changelog.read()
@@ -241,9 +240,9 @@ def core_debs(snap):
                 line = line.strip()
                 if not line.startswith("ii"):
                     continue
-                l = re.split(r"\s+", line)
-                name = l[1]
-                ver = l[2]
+                li = re.split(r"\s+", line)
+                name = li[1]
+                ver = li[2]
                 pkgs[name] = ver
     return pkgs
 
@@ -254,11 +253,11 @@ def debs_delta(debs_a, debs_b):
     diff = {}  # type: Dict[str, Tuple[str, str]]
     # in a but not in b
     for name in debs_a:
-        if not name in debs_b:
+        if name not in debs_b:
             diff[name] = (debs_a[name], "")
     # in b but not in a
     for name in debs_b:
-        if not name in debs_a:
+        if name not in debs_a:
             diff[name] = ("", debs_b[name])
     # in both
     for name in debs_a:
@@ -300,7 +299,7 @@ def deb_changelogs(new_snap, pkg_changes):
                 changelog_path = os.path.join(tmp, "usr/share/doc", fsname, chglogname)
                 if not os.path.exists(changelog_path):
                     continue
-                if not name in changelogs:
+                if name not in changelogs:
                     changelogs[name] = ""
                 changelogs[name] = changelog_until(changelog_path, old_ver)
                 break
@@ -442,14 +441,14 @@ if __name__ == "__main__":
 
     if args.import_to_db:
         imported = 0
-        db = CoreChangesDB()
+        db = CoreChangesDB("known-cores.db")
         for snap in sorted_snaps_in_dir(args.archive_dir):
             db.add_core(snap)
             imported += 1
         logging.debug("imported %i snaps" % imported)
         sys.exit(0)
     if args.gen_from_db:
-        db = CoreChangesDB()
+        db = CoreChangesDB("known-cores.db")
         old_rev, new_rev = args.gen_from_db.split(",")
         ch = db.gen_change(old_rev, new_rev)
         render_as_text([ch])
