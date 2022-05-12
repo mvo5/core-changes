@@ -58,6 +58,7 @@ class CoreChangesDB:
             """
             )
 
+    # XXX: add name here to support "core", "core18", "core20" etc
     def add_core(self, snap):
         ver = core_version(snap)
         revno = core_revno(snap)
@@ -78,7 +79,7 @@ class CoreChangesDB:
                 deb_changelog = changelogs.get(deb_name)
                 con.execute(
                     """
-                INSERT OR IGNORE INTO "debs" ( deb_name, deb_version, changelog)
+                INSERT OR IGNORE INTO "debs" (deb_name, deb_version, changelog)
                 VALUES (?, ?, ?)
                 """,
                     (deb_name, deb_ver, deb_changelog),
