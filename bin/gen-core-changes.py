@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 #
 # no python3 on lillypilly (ubuntu 12.04)
@@ -7,6 +7,7 @@ import argparse
 import datetime
 import glob
 import gzip
+import logging
 import os
 import re
 import shutil
@@ -313,8 +314,17 @@ def all_snap_changes(archive_dir):
     """
     all_snap_changes generates a list of changes for all snaps in archive_dir
     """
+    def _key(filename):
+        # type: (str) -> int
+        m = re.match(r'.*_([0-9]+).snap', filename)
+        if m is None:
+            raise Exception("cannot extra revision from %s" % filename)
+        return int(m.group(1))
+
     all_changes = []  # type: List[Change]
-    for i in range(len(sorted_snaps_in_dir(archive_dir))-1):
+    snaps=sorted(
+        glob.glob(archive_dir+"/*.snap"), key=_key)
+    for i in range(len(snaps)-1):
         a = snaps[i]
         b = snaps[i+1]
         all_changes.append(snap_change(a,b))
@@ -339,7 +349,7 @@ def render_as_text(changes):
         print("\n")
         print("## Changelogs\n")
         for name, changelog in chg.changelogs.items():
-            print("%s" % changelog.encode("utf-8"))
+            print("%r" % changelog.encode("utf-8"))
             print("\n")
 
 
@@ -376,6 +386,7 @@ def render_as_html(changes, output_dir, channel):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('archive_dir')
+    parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--markdown', action='store_true')
     parser.add_argument('--html', action='store_true')
     parser.add_argument('--output-dir', default="./html")
@@ -384,12 +395,16 @@ if __name__ == "__main__":
     parser.add_argument('--gen-from-db')
     args = parser.parse_args()
 
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+
     if args.import_to_db:
         imported = 0
         db = CoreChangesDB()
         for snap in sorted_snaps_in_dir(args.archive_dir):
             db.add_core(snap)
             imported += 1
+        logging.debug("imported %i snaps" % imported)
         sys.exit(0)
     if args.gen_from_db:
         db = CoreChangesDB()
