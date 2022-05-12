@@ -86,15 +86,22 @@ class CoreChangesDBTest(unittest.TestCase):
         db = CoreChangesDB("test.db")
         # mock snap
         debs = [("libc6", "1.0"), ("snapd", "2.52")]
-        s1 = self.make_test_core("core", 1, "16-2.52", debs)
+        s1 = self.make_test_core("core", "1", "16-2.52", debs)
         db.add_core(s1)
         debs = [("libc6", "1.0"), ("snapd", "2.54")]
-        s2 = self.make_test_core("core", 2, "16-2.54", debs)
+        s2 = self.make_test_core("core", "2", "16-2.54", debs)
         db.add_core(s2)
         debs = [("libc6", "1.2"), ("snapd", "2.56")]
-        s3 = self.make_test_core("core", 3, "16-2.56", debs)
+        s3 = self.make_test_core("core", "3", "16-2.56", debs)
         db.add_core(s3)
-        # gen changes
+        # two revs
+        change = db.gen_change("1", "3")
+        self.assertEqual(change.old_version, "16-2.52")
+        self.assertEqual(change.new_version, "16-2.56")
+        self.assertEqual(
+            change.pkg_changes, {"libc6": ("1.0", "1.2"), "snapd": ("2.52", "2.56")}
+        )
+        # just one rev
         change = db.gen_change("2", "3")
         self.assertEqual(change.old_version, "16-2.54")
         self.assertEqual(change.new_version, "16-2.56")

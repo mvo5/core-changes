@@ -107,7 +107,9 @@ class CoreChangesDB:
                 (old_revno, new_revno),
             )
             for row in cur.fetchall():
-                deb_name, new_debver, old_debver = row[0], row[1], row[2]
+                # XXX: this should be "old_debver, new_debver" according
+                #      the the SQL but it's not
+                deb_name, old_debver, new_debver, = row[0], row[1], row[2]
                 new_cl = row[3]
                 bd = row[4]
                 new_ver = row[5]
