@@ -2,7 +2,7 @@
 
 set -e
 
-for snap in core core18 core16; do
+for snap in core22 core20 core core18 core16; do
     OUTPUT=~/public_html/${snap}-changes
     mkdir -p "$OUTPUT"
 
