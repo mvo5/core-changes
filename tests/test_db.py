@@ -96,14 +96,14 @@ class CoreChangesDBTest(unittest.TestCase):
         s3 = self.make_test_core("core", "3", "16-2.56", debs)
         db.add_core(s3)
         # two revs
-        change = db.gen_change("1", "3")
+        change = db.gen_change("core", "1", "3")
         self.assertEqual(change.old_version, "16-2.52")
         self.assertEqual(change.new_version, "16-2.56")
         self.assertEqual(
             change.pkg_changes, {"libc6": ("1.0", "1.2"), "snapd": ("2.52", "2.56")}
         )
         # just one rev
-        change = db.gen_change("2", "3")
+        change = db.gen_change("core", "2", "3")
         self.assertEqual(change.old_version, "16-2.54")
         self.assertEqual(change.new_version, "16-2.56")
         self.assertEqual(
@@ -145,6 +145,13 @@ class CoreChangesDBTest(unittest.TestCase):
             self.assertEqual(len(res), 2)
             row = res[1]
             self.assertEqual(row[1], 2)
+
+    def test_db_big(self):
+        db = CoreChangesDB("test.db")
+        for i in range(100):
+            debs = [("libc6", "1.0"), ("snapd", "2.52")]
+            s1 = self.make_test_core("core", i, "16-2.52", debs)
+            db.add_core(s1)
 
 
 if __name__ == "__main__":

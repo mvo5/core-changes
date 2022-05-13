@@ -33,11 +33,13 @@ class CoreChangesDB:
     def __init__(self, dbpath):
         self._dbpath = dbpath
         with sqlite3.connect(self._dbpath) as con:
+            # XXX: add indexes
             con.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS "cores"
                 (
                   [core_revno] INTEGER PRIMARY KEY NOT NULL,
+                  [core_name] TEXT,
                   [core_version] TEXT,
                   [core_build_date] TEXT
                 );
@@ -50,10 +52,11 @@ class CoreChangesDB:
                 );
                 CREATE TABLE IF NOT EXISTS "coresdebs"
                 (
+                  [core_name] TEXT NOT NULL,
                   [core_revno] INTEGER NOT NULL,
                   [deb_name] TEXT NOT NULL,
                   [deb_version] TEXT NOT NULL,
-                  PRIMARY KEY (core_revno, deb_name, deb_version)
+                  PRIMARY KEY (core_name, core_revno, deb_name, deb_version)
                 );
                 CREATE TABLE IF NOT EXISTS "releases"
                 (
@@ -94,8 +97,8 @@ class CoreChangesDB:
 
     # XXX: add name here to support "core", "core18", "core20" etc
     def add_core(self, snap):
+        core_name, revno = core_name_revno(snap)
         ver = core_version(snap)
-        revno = core_revno(snap)
         bd = build_date(snap)
         debs = core_debs(snap)
         changelogs = deb_changelogs_all(snap)
@@ -103,10 +106,10 @@ class CoreChangesDB:
             # add snap
             con.execute(
                 """
-            INSERT OR IGNORE INTO "cores" (core_revno, core_version, core_build_date)
-            VALUES (?, ?, ?)
+            INSERT OR IGNORE INTO "cores" (core_name, core_revno, core_version, core_build_date)
+            VALUES (?, ?, ?, ?)
             """,
-                (revno, ver, bd),
+                (core_name, revno, ver, bd),
             )
             # add debs
             for deb_name, deb_ver in debs.items():
@@ -121,13 +124,13 @@ class CoreChangesDB:
                 # add relation
                 con.execute(
                     """
-                INSERT OR IGNORE INTO "coresdebs" (core_revno, deb_name, deb_version)
-                VALUES (?, ?, ?)
+                INSERT OR IGNORE INTO "coresdebs" (core_name, core_revno, deb_name, deb_version)
+                VALUES (?, ?, ?, ?)
                 """,
-                    (revno, deb_name, deb_ver),
+                    (core_name, revno, deb_name, deb_ver),
                 )
 
-    def gen_change(self, old_revno, new_revno):
+    def gen_change(self, core_name, old_revno, new_revno):
         changelogs = {}
         pkg_diff = {}
         with sqlite3.connect(self._dbpath) as con:
@@ -136,9 +139,9 @@ class CoreChangesDB:
             SELECT new.deb_name, new.deb_version, old.deb_version, debs.changelog, cores.core_build_date, cores.core_version, old_cores.core_version
             FROM coresdebs AS old, debs, cores, cores AS old_cores
             JOIN coresdebs AS new ON old.deb_name = new.deb_name and new.deb_version != old.deb_version
-            WHERE old.core_revno=? and new.core_revno=? and debs.deb_name == new.deb_name and debs.deb_version == new.deb_version and new.core_revno = cores.core_revno and old.core_revno = old_cores.core_revno
+            WHERE old.core_name=? and new.core_name=? and old.core_revno=? and new.core_revno=? and debs.deb_name == new.deb_name and debs.deb_version == new.deb_version and new.core_revno = cores.core_revno and old.core_revno = old_cores.core_revno
             """,
-                (old_revno, new_revno),
+                (core_name, core_name, old_revno, new_revno),
             )
             for row in cur.fetchall():
                 deb_name, new_debver, old_debver, = (
@@ -259,13 +262,13 @@ def core_version(snap):
     return "unknown"
 
 
-def core_revno(snap):
-    # type: (str) -> str
+def core_name_revno(snap):
+    # type: (str) -> Tuple[str, str]
     snap = os.path.basename(snap)
     m = re.match(r"([a-zA-Z0-9]+)_([0-9]+)\.snap", snap)
     if not m:
         raise Exception("cannot extract revno from %s" % snap)
-    return m.group(2)
+    return m.group(1), m.group(2)
 
 
 def core_debs(snap):
@@ -358,9 +361,9 @@ def snap_change(old_snap, new_snap):
     # type: (str, str) -> Change
     """snap_change returns a Change object for the given two snaps"""
     old_ver = core_version(old_snap)
-    old_revno = core_revno(old_snap)
+    _, old_revno = core_name_revno(old_snap)
     new_ver = core_version(new_snap)
-    new_revno = core_revno(new_snap)
+    _, new_revno = core_name_revno(new_snap)
     diff = debs_delta(core_debs(old_snap), core_debs(new_snap))
     changelogs = deb_changelogs(new_snap, diff)
     bd = build_date(new_snap)
@@ -489,7 +492,7 @@ if __name__ == "__main__":
     if args.gen_from_db:
         db = CoreChangesDB("known-cores.db")
         old_rev, new_rev = args.gen_from_db.split(",")
-        ch = db.gen_change(old_rev, new_rev)
+        ch = db.gen_change("core", old_rev, new_rev)
         render_as_text([ch])
         sys.exit(0)
 
