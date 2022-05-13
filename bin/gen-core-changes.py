@@ -141,7 +141,11 @@ class CoreChangesDB:
                 (old_revno, new_revno),
             )
             for row in cur.fetchall():
-                deb_name, new_debver, old_debver, = row[0], row[1], row[2]
+                deb_name, new_debver, old_debver, = (
+                    row[0],
+                    row[1],
+                    row[2],
+                )
                 new_cl = row[3]
                 bd = row[4]
                 new_ver = row[5]
