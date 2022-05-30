@@ -141,14 +141,12 @@ class CoreChangesDB:
                 (old_revno, new_revno),
             )
             for row in cur.fetchall():
-                # XXX: this should be "old_debver, new_debver" according
-                #      the the SQL but it's not
-                deb_name, old_debver, new_debver, = (row[0], row[1], row[2])
+                deb_name, new_debver, old_debver, = row[0], row[1], row[2]
                 new_cl = row[3]
                 bd = row[4]
                 new_ver = row[5]
                 old_ver = row[6]
-                pkg_diff[deb_name] = (new_debver, old_debver)
+                pkg_diff[deb_name] = (old_debver, new_debver)
                 changelog = []
                 if new_cl:
                     for line in new_cl.split("\n"):
