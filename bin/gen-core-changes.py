@@ -70,7 +70,7 @@ class CoreChangesDB:
             # XXX: do this in one sql statement?
             cur = con.execute(
                 """
-                SELECT core_name,core_revno,track FROM "releases" 
+                SELECT core_name,core_revno,track FROM "releases"
                 ORDER BY rowid DESC LIMIT 1;
                 """
             )
@@ -143,11 +143,7 @@ class CoreChangesDB:
             for row in cur.fetchall():
                 # XXX: this should be "old_debver, new_debver" according
                 #      the the SQL but it's not
-                deb_name, old_debver, new_debver, = (
-                    row[0],
-                    row[1],
-                    row[2],
-                )
+                deb_name, old_debver, new_debver, = (row[0], row[1], row[2])
                 new_cl = row[3]
                 bd = row[4]
                 new_ver = row[5]
