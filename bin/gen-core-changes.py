@@ -38,10 +38,11 @@ class CoreChangesDB:
                 """
                 CREATE TABLE IF NOT EXISTS "cores"
                 (
-                  [core_revno] INTEGER PRIMARY KEY NOT NULL,
-                  [core_name] TEXT,
+                  [core_name] TEXT NOT NULL,
+                  [core_revno] INTEGER NOT NULL,
                   [core_version] TEXT,
-                  [core_build_date] TEXT
+                  [core_build_date] TEXT,
+                  PRIMARY KEY (core_name, core_revno)
                 );
                 CREATE TABLE IF NOT EXISTS "debs"
                 (
