@@ -138,12 +138,21 @@ class CoreChangesDBTest(unittest.TestCase):
         with sqlite3.connect(db._dbpath) as con:
             res = con.execute("SELECT * FROM releases;").fetchall()
             self.assertEqual(len(res), 1)
-        # add a new revision
-        db.add_core_release("core", 2, "stable")
+        # add the same revision for a different core snap, it's added
+        db.add_core_release("core18", 1, "stable")
         with sqlite3.connect(db._dbpath) as con:
             res = con.execute("SELECT * FROM releases;").fetchall()
             self.assertEqual(len(res), 2)
             row = res[1]
+            self.assertEqual(row[0], "core18")
+            self.assertEqual(row[1], 1)
+        # add a new revision for core
+        db.add_core_release("core", 2, "stable")
+        with sqlite3.connect(db._dbpath) as con:
+            res = con.execute("SELECT * FROM releases;").fetchall()
+            self.assertEqual(len(res), 3)
+            row = res[2]
+            self.assertEqual(row[0], "core")
             self.assertEqual(row[1], 2)
 
     def test_db_big(self):

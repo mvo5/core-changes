@@ -69,19 +69,21 @@ class CoreChangesDB:
             """
             )
 
-    def add_core_release(self, name, revno, track):
+    def add_core_release(self, core_name, revno, track):
         with sqlite3.connect(self._dbpath) as con:
             # XXX: do this in one sql statement?
             cur = con.execute(
                 """
                 SELECT core_name,core_revno,track FROM "releases"
+                WHERE core_name = ? and track = ?
                 ORDER BY rowid DESC LIMIT 1;
-                """
+                """,
+                (core_name, track),
             )
             row = cur.fetchone()
             if (
                 row is not None
-                and row[0] == name
+                and row[0] == core_name
                 and row[1] == revno
                 and row[2] == track
             ):
@@ -93,7 +95,7 @@ class CoreChangesDB:
                 INSERT INTO "releases" (core_name, core_revno, track, date)
                 VALUES (?, ?, ?, ?)
                 """,
-                (name, revno, track, now.isoformat()),
+                (core_name, revno, track, now.isoformat()),
             )
 
     # XXX: add name here to support "core", "core18", "core20" etc
