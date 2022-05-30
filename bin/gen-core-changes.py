@@ -98,8 +98,7 @@ class CoreChangesDB:
                 (core_name, revno, track, now.isoformat()),
             )
 
-    # XXX: add name here to support "core", "core18", "core20" etc
-    def add_core(self, snap):
+    def add_core(self, snap, track=""):
         core_name, revno = core_name_revno(snap)
         ver = core_version(snap)
         bd = build_date(snap)
@@ -132,6 +131,8 @@ class CoreChangesDB:
                 """,
                     (core_name, revno, deb_name, deb_ver),
                 )
+        if track != "":
+            self.add_core_release(core_name, revno, track)
 
     def gen_change(self, core_name, old_revno, new_revno):
         changelogs = {}
@@ -477,7 +478,7 @@ if __name__ == "__main__":
     parser.add_argument("--html", action="store_true")
     parser.add_argument("--output-dir", default="./html")
     parser.add_argument("--channel", default="unknown")
-    parser.add_argument("--import-to-db", action="store_true")
+    parser.add_argument("--import-to-db")
     parser.add_argument("--gen-from-db")
     args = parser.parse_args()
 
@@ -485,14 +486,17 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.DEBUG)
 
     if args.import_to_db:
+        track = args.import_to_db
         imported = 0
         db = CoreChangesDB("known-cores.db")
         for snap in sorted_snaps_in_dir(args.archive_dir):
-            db.add_core(snap)
+            db.add_core(snap, track)
             imported += 1
         logging.debug("imported %i snaps" % imported)
         sys.exit(0)
     if args.gen_from_db:
+        # XXX: rewrite to take "core_name,track" as args
+        #      and use new "revision" table to get core changes
         db = CoreChangesDB("known-cores.db")
         old_rev, new_rev = args.gen_from_db.split(",")
         ch = db.gen_change("core", old_rev, new_rev)
