@@ -55,7 +55,41 @@ class CoreChangesDB:
                   [deb_version] TEXT NOT NULL,
                   PRIMARY KEY (core_revno, deb_name, deb_version)
                 );
+                CREATE TABLE IF NOT EXISTS "releases"
+                (
+                  [core_name] TEXT NOT NULL,
+                  [core_revno] INTEGER NOT NULL,
+                  [track] TEXT NOT NULL,
+                  [date] TEXT NOT NULL
+                );
             """
+            )
+
+    def add_core_release(self, name, revno, track):
+        with sqlite3.connect(self._dbpath) as con:
+            # XXX: do this in one sql statement?
+            cur = con.execute(
+                """
+                SELECT core_name,core_revno,track FROM "releases" 
+                ORDER BY rowid DESC LIMIT 1;
+                """
+            )
+            row = cur.fetchone()
+            if (
+                row is not None
+                and row[0] == name
+                and row[1] == revno
+                and row[2] == track
+            ):
+                return
+            # new revision, add
+            now = datetime.datetime.utcnow()
+            con.execute(
+                """
+                INSERT INTO "releases" (core_name, core_revno, track, date)
+                VALUES (?, ?, ?, ?)
+                """,
+                (name, revno, track, now.isoformat()),
             )
 
     # XXX: add name here to support "core", "core18", "core20" etc
@@ -109,7 +143,11 @@ class CoreChangesDB:
             for row in cur.fetchall():
                 # XXX: this should be "old_debver, new_debver" according
                 #      the the SQL but it's not
-                deb_name, old_debver, new_debver, = row[0], row[1], row[2]
+                deb_name, old_debver, new_debver, = (
+                    row[0],
+                    row[1],
+                    row[2],
+                )
                 new_cl = row[3]
                 bd = row[4]
                 new_ver = row[5]
@@ -155,7 +193,7 @@ def deb_changelogs_all(new_snap):
 
 
 class tmpdir:
-    """ tmpdir provides a temporary directory via a context manager"""
+    """tmpdir provides a temporary directory via a context manager"""
 
     def __enter__(self):
         # type: () -> str
@@ -167,7 +205,7 @@ class tmpdir:
 
 
 class Change:
-    """ Change contains the changes from old_version to new version """
+    """Change contains the changes from old_version to new version"""
 
     def __init__(
         self, old_version, old_revno, new_version, new_revno, date_new, diff, changelogs

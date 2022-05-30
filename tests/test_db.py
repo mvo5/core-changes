@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import datetime
 import gzip
 import os
 import sqlite3
@@ -117,6 +118,33 @@ class CoreChangesDBTest(unittest.TestCase):
             change.changelogs["snapd"].split("\n")[0],
             "snapd (16-2.56) xenial; urgency=medium",
         )
+
+    def test_db_add_core_release(self):
+        db = CoreChangesDB("test.db")
+        db.add_core_release("core", 1, "stable")
+        with sqlite3.connect(db._dbpath) as con:
+            res = con.execute("SELECT * FROM releases;").fetchall()
+            self.assertEqual(len(res), 1)
+            row = res[0]
+            self.assertEqual(row[0], "core")
+            self.assertEqual(row[1], 1)
+            self.assertEqual(row[2], "stable")
+            # check that it looks like a iso8601 date
+            self.assertRegex(row[3], "[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9][2}:[0-9]{2}")
+            d = datetime.datetime.fromisoformat(row[3])
+            self.assertIsInstance(d, datetime.datetime)
+        # add the same revision again, this won't be added
+        db.add_core_release("core", 1, "stable")
+        with sqlite3.connect(db._dbpath) as con:
+            res = con.execute("SELECT * FROM releases;").fetchall()
+            self.assertEqual(len(res), 1)
+        # add a new revision
+        db.add_core_release("core", 2, "stable")
+        with sqlite3.connect(db._dbpath) as con:
+            res = con.execute("SELECT * FROM releases;").fetchall()
+            self.assertEqual(len(res), 2)
+            row = res[1]
+            self.assertEqual(row[1], 2)
 
 
 if __name__ == "__main__":
