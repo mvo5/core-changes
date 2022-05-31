@@ -134,7 +134,26 @@ class CoreChangesDB:
         if track != "":
             self.add_core_release(core_name, revno, track)
 
-    def gen_change(self, core_name, old_revno, new_revno):
+    def get_changes_for(self, core_name, track):
+        changes = []
+        with sqlite3.connect(self._dbpath) as con:
+            cur = con.execute(
+                """
+                SELECT core_revno FROM releases
+                WHERE core_name = ? and track = ?
+                """,
+                (core_name, track),
+            )
+            old_revno = None
+            for row in cur.fetchall():
+                revno = row[0]
+                if old_revno is not None:
+                    change = self._gen_change(core_name, old_revno, revno)
+                    changes.insert(0, change)
+                old_revno = revno
+        return changes
+
+    def _gen_change(self, core_name, old_revno, new_revno):
         changelogs = {}
         pkg_diff = {}
         with sqlite3.connect(self._dbpath) as con:
@@ -472,19 +491,21 @@ def render_as_html(changes, output_dir, channel):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("archive_dir")
+    parser.add_argument("--archive_dir")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--markdown", action="store_true")
     parser.add_argument("--html", action="store_true")
     parser.add_argument("--output-dir", default="./html")
-    parser.add_argument("--channel", default="unknown")
+    parser.add_argument("--track", required=True)
+    parser.add_argument("--snap", required=True)
     parser.add_argument("--import-to-db")
-    parser.add_argument("--gen-from-db")
+    parser.add_argument("--gen-from-db", action="store_true")
     args = parser.parse_args()
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
 
+    # XXX: rename to "mass-import-to-db" or something
     if args.import_to_db:
         track = args.import_to_db
         imported = 0
@@ -494,20 +515,17 @@ if __name__ == "__main__":
             imported += 1
         logging.debug("imported %i snaps" % imported)
         sys.exit(0)
-    if args.gen_from_db:
-        # XXX: rewrite to take "core_name,track" as args
-        #      and use new "revision" table to get core changes
-        db = CoreChangesDB("known-cores.db")
-        old_rev, new_rev = args.gen_from_db.split(",")
-        ch = db.gen_change("core", old_rev, new_rev)
-        render_as_text([ch])
-        sys.exit(0)
 
-    all_changes = all_snap_changes(args.archive_dir)
+    # XXX: add import-one-snap to be compatible with the cron job
+
+    # render db content
+    db = CoreChangesDB("known-cores.db")
+    all_changes = db.get_changes_for(args.snap, args.track)
+
     if args.markdown:
         render_as_text(all_changes)
     elif args.html:
-        render_as_html(all_changes, args.output_dir, args.channel)
+        render_as_html(all_changes, args.output_dir, args.track)
     else:
         print("no output format selected, use --html or --markdown")
         sys.exit(1)

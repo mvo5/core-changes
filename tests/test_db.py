@@ -96,14 +96,14 @@ class CoreChangesDBTest(unittest.TestCase):
         s3 = self.make_test_core("core", "3", "16-2.56", debs)
         db.add_core(s3)
         # two revs
-        change = db.gen_change("core", "1", "3")
+        change = db._gen_change("core", "1", "3")
         self.assertEqual(change.old_version, "16-2.52")
         self.assertEqual(change.new_version, "16-2.56")
         self.assertEqual(
             change.pkg_changes, {"libc6": ("1.0", "1.2"), "snapd": ("2.52", "2.56")}
         )
         # just one rev
-        change = db.gen_change("core", "2", "3")
+        change = db._gen_change("core", "2", "3")
         self.assertEqual(change.old_version, "16-2.54")
         self.assertEqual(change.new_version, "16-2.56")
         self.assertEqual(
