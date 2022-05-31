@@ -191,21 +191,18 @@ class CoreChangesDB:
 
 def deb_changelogs_all(new_snap):
     # type: (str) -> Dict[str, str]
-    """
-    deb_changelogs returns all changelogs from snap for the given pkg_changes
-    """
     changelogs = {}  # type: Dict[str, str]
+    debs = core_debs(new_snap)
     with tmpdir() as tmp:
         unsquashfs(tmp, new_snap, "/usr/share/doc/*")
-        for name in glob.glob(os.path.join(tmp, "usr/share/doc/*")):
+        for debname in debs:
             # split of multi-arch tag
-            fsname = name.split(":")[0]
-            debname = os.path.basename(name)
+            fsname = debname.split(":")[0]
             for chglogname in ["changelog.Debian.gz", "changelog.gz"]:
                 changelog_path = os.path.join(tmp, "usr/share/doc", fsname, chglogname)
                 if not os.path.exists(changelog_path):
                     continue
-                if name not in changelogs:
+                if debname not in changelogs:
                     changelogs[debname] = ""
                 with gzip.open(changelog_path) as changelog:
                     changelog_byte = changelog.read()
@@ -290,7 +287,7 @@ def core_name_revno(snap):
     snap = os.path.basename(snap)
     m = re.match(r"([a-zA-Z0-9]+)_([0-9]+)\.snap", snap)
     if not m:
-        raise Exception("cannot extract revno from %s" % snap)
+        raise Exception("cannot extract revno from '%s'" % snap)
     return m.group(1), m.group(2)
 
 
@@ -491,14 +488,14 @@ def render_as_html(changes, output_dir, channel):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--archive_dir")
+    parser.add_argument("--archive-dir")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--markdown", action="store_true")
     parser.add_argument("--html", action="store_true")
     parser.add_argument("--output-dir", default="./html")
     parser.add_argument("--track", required=True)
     parser.add_argument("--snap", required=True)
-    parser.add_argument("--import-to-db")
+    parser.add_argument("--import-to-db", action="store_true")
     parser.add_argument("--gen-from-db", action="store_true")
     args = parser.parse_args()
 
@@ -507,11 +504,10 @@ if __name__ == "__main__":
 
     # XXX: rename to "mass-import-to-db" or something
     if args.import_to_db:
-        track = args.import_to_db
         imported = 0
         db = CoreChangesDB("known-cores.db")
         for snap in sorted_snaps_in_dir(args.archive_dir):
-            db.add_core(snap, track)
+            db.add_core(snap, args.track)
             imported += 1
         logging.debug("imported %i snaps" % imported)
         sys.exit(0)
