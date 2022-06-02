@@ -496,6 +496,7 @@ if __name__ == "__main__":
     parser.add_argument("--track", required=True)
     parser.add_argument("--snap", required=True)
     parser.add_argument("--import-to-db", action="store_true")
+    parser.add_argument("--add-snap-to-db", action="store_true")
     parser.add_argument("--gen-from-db", action="store_true")
     args = parser.parse_args()
 
@@ -510,6 +511,12 @@ if __name__ == "__main__":
             db.add_core(snap, args.track)
             imported += 1
         logging.debug("imported %i snaps" % imported)
+        sys.exit(0)
+
+    if args.add_snap_to_db:
+        db = CoreChangesDB("known-cores.db")
+        db.add_core(args.snap, args.track)
+        logging.debug("imported snap %s to %s" % (args.snap, args.track))
         sys.exit(0)
 
     # XXX: add import-one-snap to be compatible with the cron job
