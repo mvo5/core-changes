@@ -482,6 +482,7 @@ def render_as_html(changes, output_dir, channel):
         details_html = os.path.join(output_dir, gen_html_filename(chg))
         with open(details_html, "wb") as details_fp:
             details = env.get_template("change_details.html")
+            # XXX: add snap_name to change and html template
             output = details.render(change=chg)
             details_fp.write(output.encode("utf-8"))
 
