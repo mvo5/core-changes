@@ -84,7 +84,7 @@ class CoreChangesDB:
             if (
                 row is not None
                 and row[0] == core_name
-                and row[1] == revno
+                and str(row[1]) == revno  # revno is a int in the DB
                 and row[2] == track
             ):
                 return
