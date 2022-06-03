@@ -18,7 +18,7 @@ for snap in core22 core20 core18 core; do
         # download the current $snap/$ch (exiting snaps won't get re-downloaded)
         filename=$(snap download --target-directory="$ARCHIVE" --"$ch" "$snap" | grep "snap install " | awk '{print $3}')
 	# add to DB (adding is idempotent)
-	gen-core-changes.py --add-snap-to-db --snap="$ARCHIVE/$(basename $filename)" --track="$ch"
+	gen-core-changes.py --add-snap-to-db --snap="$ARCHIVE/$(basename "$filename")" --track="$ch"
 
         # generate the html changes from the db
         CHANGES="$OUTPUT/$ch"
