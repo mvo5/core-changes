@@ -6,7 +6,7 @@ BASE=$(readlink -f "$(dirname "$0")/..")
 ARCHIVE="$BASE"/cache
 
 for snap in core22 core20 core18 core; do
-    OUTPUT=~/public_html/changes/"${snap}"
+    OUTPUT=~/public_html/cores/changes/"${snap}"
     mkdir -p "$OUTPUT"
 
     PATH="$BASE/bin":$PATH
