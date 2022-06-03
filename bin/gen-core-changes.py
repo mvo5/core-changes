@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
 # no python3 on lillypilly (ubuntu 12.04)
