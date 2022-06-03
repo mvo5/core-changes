@@ -151,7 +151,8 @@ class CoreChangesDB:
                 revno = row[0]
                 if old_revno is not None:
                     change = self._gen_change(core_name, old_revno, revno)
-                    changes.insert(0, change)
+                    if change is not None:
+                        changes.insert(0, change)
                 old_revno = revno
         return changes
 
@@ -168,7 +169,10 @@ class CoreChangesDB:
             """,
                 (core_name, core_name, old_revno, new_revno),
             )
-            for row in cur.fetchall():
+            rows = cur.fetchall()
+            if len(rows) == 0:
+                return None
+            for row in rows:
                 deb_name, new_debver, old_debver, = (
                     row[0],
                     row[1],
