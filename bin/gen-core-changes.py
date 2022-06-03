@@ -171,7 +171,19 @@ class CoreChangesDB:
             )
             rows = cur.fetchall()
             if len(rows) == 0:
-                return None
+                # XXX: the query is empty if there are no deb changes - but
+                # that happens. so instead of the many unknowns have two
+                # queries - one that returns the debs and one that returns
+                # the other information
+                return Change(
+                    "unknown",
+                    old_revno,
+                    "unknown",
+                    new_revno,
+                    datetime.datetime.now(),
+                    {},
+                    {},
+                )
             for row in rows:
                 deb_name, new_debver, old_debver, = (
                     row[0],
