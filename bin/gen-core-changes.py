@@ -81,11 +81,13 @@ class CoreChangesDB:
                 (core_name, track),
             )
             row = cur.fetchone()
+            # XXX: convert all to str() for py2 compatbility, here the
+            # rows are unicode but the vars like core_name/track are str
             if (
                 row is not None
-                and row[0] == core_name
-                and str(row[1]) == revno  # revno is a int in the DB
-                and row[2] == track
+                and str(row[0]) == str(core_name)
+                and str(row[1]) == str(revno)  # revno is a int in the DB
+                and str(row[2]) == str(track)
             ):
                 return
             # new revision, add
